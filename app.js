@@ -507,6 +507,7 @@ function renderMonthFilter() {
   const current = selectedMonth;
   monthFilter.innerHTML = `<option value="all">Все месяцы</option>${months.map((month) => `<option value="${month}">${month}</option>`).join("")}`;
   monthFilter.value = months.includes(current) ? current : "all";
+  selectedMonth = monthFilter.value;
 }
 
 function renderSelectOptions() {

@@ -224,6 +224,12 @@ select, input, textarea {
 }
 
 select { min-width: 180px; }
+
+select option {
+  background: var(--panel);
+  color: var(--text);
+}
+
 textarea { resize: vertical; }
 
 select:focus,
@@ -603,7 +609,13 @@ label {
   .topbar-actions { width: 100%; }
   .topbar-actions > * { flex: 1; }
   .nav { grid-template-columns: 1fr 1fr; }
+  .sidebar { padding: 18px; }
   .hero-card { flex-direction: column; align-items: flex-start; gap: 24px; }
+  .hero-meter {
+    width: 112px;
+    height: 112px;
+  }
+  .panel-header { align-items: flex-start; flex-direction: column; }
   .metric-grid,
   .settings-grid,
   .form-grid { grid-template-columns: 1fr; }

@@ -166,7 +166,7 @@ function readObjects(sheetName) {
   if (!sheet) return [];
   const values = sheet.getDataRange().getValues();
   if (values.length < 2) return [];
-  const headers = values[0].map(String);
+  const headers = values[0].map(function (header) { return normalizeHeader(header, sheetName); });
   return values.slice(1)
     .filter(function (row) { return row.some(function (cell) { return cell !== '' && cell !== null; }); })
     .map(function (row) {
@@ -185,7 +185,7 @@ function readSettings() {
   const values = sheet.getDataRange().getValues();
   const result = {};
   values.slice(1).forEach(function (row) {
-    if (row[0]) result[normalizeHeader(row[0])] = row[1];
+    if (row[0]) result[normalizeHeader(row[0], SHEETS.settings)] = row[1];
   });
   return result;
 }
@@ -195,7 +195,7 @@ function readDictionaries() {
   if (!sheet) return {};
   const values = sheet.getDataRange().getValues();
   if (values.length < 2) return {};
-  const headers = values[0].map(function (header) { return normalizeHeader(header); });
+  const headers = values[0].map(function (header) { return normalizeHeader(header, SHEETS.dictionaries); });
   const result = {};
   headers.forEach(function (header) { if (header) result[header] = []; });
   values.slice(1).forEach(function (row) {
@@ -228,9 +228,26 @@ function jsonResponse(data) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-function normalizeHeader(header) {
-  const map = {
+function normalizeHeader(header, sheetName) {
+  const name = String(header).trim();
+  const sheetMaps = {};
+  sheetMaps[SHEETS.leads] = {
     'ID заявки': 'id',
+    'ID заказа': 'orderId'
+  };
+  sheetMaps[SHEETS.orders] = {
+    'ID заказа': 'id',
+    'ID заявки': 'leadId'
+  };
+  sheetMaps[SHEETS.expenses] = {
+    'ID заказа': 'orderId'
+  };
+
+  if (sheetMaps[sheetName] && sheetMaps[sheetName][name]) {
+    return sheetMaps[sheetName][name];
+  }
+
+  const map = {
     'Дата обращения': 'date',
     'Время': 'time',
     'Клиент': 'client',
@@ -248,7 +265,6 @@ function normalizeHeader(header) {
     'Финальная сумма': 'finalAmount',
     'Ответственный': 'responsible',
     'Комментарий': 'comment',
-    'ID заказа': 'id',
     'Дата след. контакта': 'nextContact',
     'Дата выполнения': 'doneDate',
     'Канал': 'channel',
@@ -296,7 +312,7 @@ function normalizeHeader(header) {
     'Параметр': 'parameter',
     'Значение': 'value'
   };
-  return map[String(header).trim()] || String(header).trim();
+  return map[name] || name;
 }
 
 function boolRu(value) {
