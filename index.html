@@ -1,304 +1,1068 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PRO-CHISTKA — бизнес-дашборд</title>
-  <link rel="stylesheet" href="styles.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRO-CHISTKA — управленческий дашборд</title>
+<style>
+  :root {
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --series-1: #2a78d6;   /* выручка */
+    --series-2: #1baf7a;   /* прибыль */
+    --good: #006300;
+    --bad: #d03b3b;
+    --warn-bg: #fdf3e0;
+    --accent: #2a78d6;
+    --accent-ink: #ffffff;
+    --hover-wash: rgba(11,11,11,0.045);
+    --shadow: 0 1px 2px rgba(11,11,11,.05), 0 4px 16px rgba(11,11,11,.05);
+  }
+  :root[data-theme="dark"] {
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5;
+    --series-2: #199e70;
+    --good: #0ca30c;
+    --bad: #e66767;
+    --warn-bg: #33290f;
+    --accent: #3987e5;
+    --hover-wash: rgba(255,255,255,0.06);
+    --shadow: none;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 20px 64px; }
+
+  /* ── header ─────────────────────────────────────── */
+  header.top {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 6px 0 18px;
+  }
+  .logo {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font-weight: 700; font-size: 15px;
+    flex: none;
+  }
+  .brand h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+  .brand p { margin: 0; color: var(--muted); font-size: 12px; }
+  .top .spacer { flex: 1; }
+  .btn {
+    appearance: none; border: 1px solid var(--border); background: var(--surface-1);
+    color: var(--ink); border-radius: 8px; padding: 7px 12px; font: inherit;
+    font-size: 13px; cursor: pointer; transition: background .12s;
+  }
+  .btn:hover { background: var(--hover-wash); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.07); background: var(--accent); }
+  .btn.subtle { border-color: transparent; background: transparent; color: var(--ink-2); }
+  .btn.subtle:hover { background: var(--hover-wash); }
+  .btn.danger { color: var(--bad); }
+
+  /* ── filter row ─────────────────────────────────── */
+  .filters {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin: 0 0 18px;
+  }
+  .seg { display: flex; background: var(--surface-1); border: 1px solid var(--border); border-radius: 9px; padding: 3px; gap: 2px; }
+  .seg button {
+    appearance: none; border: 0; background: transparent; color: var(--ink-2);
+    font: inherit; font-size: 13px; padding: 5px 11px; border-radius: 6px; cursor: pointer;
+  }
+  .seg button:hover { background: var(--hover-wash); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .filters .custom { display: none; align-items: center; gap: 6px; color: var(--ink-2); font-size: 13px; }
+  .filters .custom.show { display: flex; }
+  .filters input[type="date"], .filters select {
+    font: inherit; font-size: 13px; color: var(--ink);
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px;
+  }
+  .filters .scope-note { color: var(--muted); font-size: 12px; margin-left: auto; }
+
+  /* ── cards / grid ───────────────────────────────── */
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: var(--shadow); padding: 16px 18px;
+  }
+  .card h2 { font-size: 13px; font-weight: 650; margin: 0 0 2px; }
+  .card .sub { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 12px 14px; }
+  .tile .label { color: var(--ink-2); font-size: 12px; }
+  .tile .value { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; margin-top: 3px; white-space: nowrap; }
+  .tile .note { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .tile .note.bad { color: var(--bad); }
+  .tile .note.good { color: var(--good); }
+  .tile.hero { grid-column: span 2; background: var(--accent); border-color: transparent; }
+  .tile.hero .label, .tile.hero .note { color: rgba(255,255,255,.75); }
+  .tile.hero .value { color: #fff; font-size: 34px; }
+  @media (max-width: 560px) { .tile.hero { grid-column: span 1; } .tile.hero .value { font-size: 26px; } }
+
+  .charts { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 18px; }
+  .charts .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 820px) { .charts .row2 { grid-template-columns: 1fr; } }
+
+  .legend { display: flex; gap: 16px; align-items: center; margin: 2px 0 8px; font-size: 12px; color: var(--ink-2); }
+  .legend .key { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .swatch { width: 12px; height: 12px; border-radius: 3px; }
+
+  .chart-box { position: relative; }
+  .chart-box svg { display: block; width: 100%; height: auto; }
+  .chart-empty { color: var(--muted); font-size: 13px; padding: 26px 0; text-align: center; }
+
+  /* tooltip */
+  .tip {
+    position: absolute; pointer-events: none; z-index: 30; display: none;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 9px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.14); padding: 8px 11px; min-width: 130px;
+  }
+  .tip .t-head { color: var(--muted); font-size: 11px; margin-bottom: 5px; }
+  .tip .t-row { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 1.5px 0; }
+  .tip .t-key { width: 12px; height: 3px; border-radius: 2px; flex: none; }
+  .tip .t-val { font-weight: 650; margin-left: auto; padding-left: 14px; font-variant-numeric: tabular-nums; }
+  .tip .t-name { color: var(--ink-2); }
+
+  /* ── tables ─────────────────────────────────────── */
+  .tables { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+  @media (max-width: 820px) { .tables { grid-template-columns: 1fr; } }
+  .tbl-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 550; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr.total td { font-weight: 650; border-top: 1px solid var(--axis); }
+  td .dim { color: var(--muted); }
+
+  /* orders */
+  .orders-head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; flex-wrap: wrap; }
+  .orders-head h2 { font-size: 13px; font-weight: 650; margin: 0; }
+  .orders-head .count { color: var(--muted); font-size: 12px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11.5px; font-weight: 550; }
+  .badge.lead { background: rgba(42,120,214,.13); color: var(--series-1); }
+  .badge.work { background: rgba(237,161,0,.15); color: #9a6a00; }
+  :root[data-theme="dark"] .badge.work { color: #eda100; }
+  .badge.done { background: rgba(12,163,12,.12); color: var(--good); }
+  .badge.cancelled { background: var(--hover-wash); color: var(--muted); }
+  .badge.debt { background: rgba(208,59,59,.12); color: var(--bad); }
+  .badge.problem { background: var(--warn-bg); color: #9a6a00; }
+  :root[data-theme="dark"] .badge.problem { color: #eda100; }
+  .row-actions button { margin-left: 4px; }
+  .empty-state { text-align: center; padding: 36px 16px; color: var(--ink-2); }
+  .empty-state p { margin: 0 0 14px; }
+
+  /* ── modal ──────────────────────────────────────── */
+  dialog {
+    border: 1px solid var(--border); border-radius: 14px; padding: 0;
+    background: var(--surface-1); color: var(--ink); width: min(640px, calc(100vw - 32px));
+    box-shadow: 0 12px 48px rgba(0,0,0,.22);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.35); }
+  .modal-body { padding: 20px 22px; }
+  .modal-body h2 { margin: 0 0 16px; font-size: 16px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+  @media (max-width: 560px) { .form-grid { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field.full { grid-column: 1 / -1; }
+  .field label { font-size: 12px; color: var(--ink-2); }
+  .field input, .field select, .field textarea {
+    font: inherit; color: var(--ink); background: var(--page);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .checkline { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); grid-column: 1 / -1; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .hint { font-size: 11.5px; color: var(--muted); }
+
+  footer { color: var(--muted); font-size: 12px; margin-top: 26px; text-align: center; }
+  footer .io { margin-top: 6px; }
+  a { color: var(--accent); }
+</style>
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">PC</div>
-        <div>
-          <div class="brand-name">PRO-CHISTKA</div>
-          <div class="brand-subtitle">Business Dashboard</div>
-        </div>
-      </div>
+<div class="wrap">
 
-      <nav class="nav" aria-label="Основная навигация">
-        <button class="nav-link active" data-view="dashboard">Пульс бизнеса</button>
-        <button class="nav-link" data-view="leads">Заявки</button>
-        <button class="nav-link" data-view="orders">Заказы</button>
-        <button class="nav-link" data-view="expenses">Расходы</button>
-        <button class="nav-link" data-view="analytics">Аналитика</button>
-        <button class="nav-link" data-view="settings">Настройки</button>
-      </nav>
+  <header class="top">
+    <div class="logo">PC</div>
+    <div class="brand">
+      <h1>PRO-CHISTKA</h1>
+      <p>Управленческий дашборд клининга</p>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn subtle" id="themeBtn" title="Переключить тему">🌗 Тема</button>
+    <button class="btn" id="exportCsvBtn">CSV</button>
+    <button class="btn" id="exportBtn">Экспорт</button>
+    <button class="btn" id="importBtn">Импорт</button>
+    <input type="file" id="importFile" accept="application/json" hidden>
+    <button class="btn primary" id="addBtn">+ Новая заявка</button>
+  </header>
 
-      <div class="sidebar-card">
-        <span class="status-dot"></span>
-        <div>
-          <strong id="dataSourceLabel">Демо-режим</strong>
-          <p>После подключения Google Sheets данные будут подтягиваться из таблицы.</p>
-        </div>
-      </div>
-    </aside>
-
-    <main class="main">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">Управление клининговым бизнесом</p>
-          <h1 id="pageTitle">Пульс бизнеса</h1>
-        </div>
-        <div class="topbar-actions">
-          <select id="monthFilter" aria-label="Фильтр по месяцу"></select>
-          <button class="button button-secondary" id="refreshBtn">Обновить</button>
-          <button class="button" data-open-modal="leadModal">+ Заявка</button>
-        </div>
-      </header>
-
-      <section id="dashboard" class="view active">
-        <div class="hero-grid">
-          <article class="hero-card">
-            <div>
-              <p class="card-label">Прибыль месяца</p>
-              <h2 id="heroProfit">0 ₽</h2>
-              <p id="heroProfitHint">С учётом прямых затрат</p>
-            </div>
-            <div class="hero-meter">
-              <span id="heroMargin">0%</span>
-              <small>маржа</small>
-            </div>
-          </article>
-          <article class="focus-card" id="focusCard">
-            <p class="card-label">Что требует внимания</p>
-            <div id="focusList" class="focus-list"></div>
-          </article>
-        </div>
-
-        <div class="metric-grid" id="metricGrid"></div>
-
-        <div class="two-column">
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">Каналы</p>
-                <h2>Откуда приходят деньги</h2>
-              </div>
-            </div>
-            <div id="channelBars" class="bar-list"></div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">Заказы</p>
-                <h2>Последние и проблемные</h2>
-              </div>
-              <button class="ghost-button" data-view-shortcut="orders">Все заказы</button>
-            </div>
-            <div id="recentOrders" class="compact-list"></div>
-          </section>
-        </div>
-      </section>
-
-      <section id="leads" class="view">
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <p class="eyebrow">CRM</p>
-              <h2>Заявки</h2>
-            </div>
-            <button class="button" data-open-modal="leadModal">+ Добавить заявку</button>
-          </div>
-          <div class="toolbar">
-            <input id="leadSearch" type="search" placeholder="Поиск по клиенту, телефону, услуге..." />
-            <select id="leadStatusFilter"><option value="">Все статусы</option></select>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Дата</th>
-                  <th>Клиент</th>
-                  <th>Источник</th>
-                  <th>Услуга</th>
-                  <th>Сумма</th>
-                  <th>Статус</th>
-                  <th>След. контакт</th>
-                </tr>
-              </thead>
-              <tbody id="leadsTable"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <section id="orders" class="view">
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <p class="eyebrow">Операции</p>
-              <h2>Заказы</h2>
-            </div>
-            <button class="button" data-open-modal="orderModal">+ Добавить заказ</button>
-          </div>
-          <div class="toolbar">
-            <input id="orderSearch" type="search" placeholder="Поиск по клиенту, услуге, адресу..." />
-            <select id="orderStatusFilter"><option value="">Все статусы</option></select>
-            <select id="orderSignalFilter"><option value="">Все сигналы</option></select>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Дата</th>
-                  <th>Клиент</th>
-                  <th>Услуга</th>
-                  <th>Выручка</th>
-                  <th>Затраты</th>
-                  <th>Прибыль</th>
-                  <th>Маржа</th>
-                  <th>₽/час</th>
-                  <th>Сигнал</th>
-                </tr>
-              </thead>
-              <tbody id="ordersTable"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <section id="expenses" class="view">
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <p class="eyebrow">Деньги</p>
-              <h2>Расходы</h2>
-            </div>
-            <button class="button" data-open-modal="expenseModal">+ Добавить расход</button>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Дата</th>
-                  <th>Заказ</th>
-                  <th>Категория</th>
-                  <th>Сумма</th>
-                  <th>Способ оплаты</th>
-                  <th>Комментарий</th>
-                </tr>
-              </thead>
-              <tbody id="expensesTable"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <section id="analytics" class="view">
-        <div class="analytics-grid">
-          <section class="panel">
-            <div class="panel-header"><h2>Выручка по услугам</h2></div>
-            <div id="serviceBars" class="bar-list"></div>
-          </section>
-          <section class="panel">
-            <div class="panel-header"><h2>Прибыль по каналам</h2></div>
-            <div id="profitChannelBars" class="bar-list"></div>
-          </section>
-          <section class="panel wide-panel">
-            <div class="panel-header"><h2>План/факт месяца</h2></div>
-            <div id="planFact" class="plan-card"></div>
-          </section>
-        </div>
-      </section>
-
-      <section id="settings" class="view">
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <p class="eyebrow">Правила бизнеса</p>
-              <h2>Настройки</h2>
-            </div>
-            <button class="button" id="saveSettingsBtn">Сохранить настройки</button>
-          </div>
-          <form id="settingsForm" class="settings-grid"></form>
-        </div>
-      </section>
-    </main>
+  <div class="filters" id="filters">
+    <div class="seg" id="periodSeg" role="group" aria-label="Период">
+      <button data-period="all">Всё время</button>
+      <button data-period="month">Текущий месяц</button>
+      <button data-period="prev">Прошлый месяц</button>
+      <button data-period="90">90 дней</button>
+      <button data-period="year">Год</button>
+      <button data-period="custom">Свой…</button>
+    </div>
+    <div class="custom" id="customRange">
+      <input type="date" id="fromDate"> — <input type="date" id="toDate">
+    </div>
+    <select id="channelFilter" aria-label="Канал"></select>
+    <select id="serviceFilter" aria-label="Услуга"></select>
+    <span class="scope-note" id="scopeNote"></span>
   </div>
 
-  <dialog id="leadModal" class="modal">
-    <form method="dialog" class="modal-card" id="leadForm">
-      <div class="modal-header">
-        <h2>Новая заявка</h2>
-        <button class="icon-button" value="cancel" aria-label="Закрыть">×</button>
-      </div>
-      <div class="form-grid">
-        <label>Дата<input name="date" type="date" required></label>
-        <label>Клиент<input name="client" placeholder="Имя клиента" required></label>
-        <label>Телефон<input name="phone" placeholder="+7..." required></label>
-        <label>Источник<select name="source" data-options="channels"></select></label>
-        <label>Услуга<select name="service" data-options="services"></select></label>
-        <label>Объект<select name="objectType" data-options="objectTypes"></select></label>
-        <label>Площадь, м²<input name="area" type="number" min="0" step="0.1"></label>
-        <label>Предв. сумма<input name="amount" type="number" min="0" step="100"></label>
-        <label>Статус<select name="status" data-options="leadStatuses"></select></label>
-        <label>Следующий контакт<input name="nextContact" type="date"></label>
-        <label class="full">Комментарий<textarea name="comment" rows="3" placeholder="Что важно не забыть"></textarea></label>
-      </div>
-      <div class="modal-actions">
-        <button class="button button-secondary" value="cancel" type="button" data-close-modal>Отмена</button>
-        <button class="button" type="submit">Сохранить заявку</button>
-      </div>
-    </form>
-  </dialog>
+  <section class="kpis" id="kpis" aria-label="Ключевые показатели"></section>
 
-  <dialog id="orderModal" class="modal">
-    <form method="dialog" class="modal-card" id="orderForm">
-      <div class="modal-header">
-        <h2>Новый заказ</h2>
-        <button class="icon-button" value="cancel" aria-label="Закрыть">×</button>
+  <section class="charts">
+    <div class="card">
+      <h2>Выручка и валовая прибыль по месяцам</h2>
+      <p class="sub">Только выполненные заказы, по дате выполнения</p>
+      <div class="legend">
+        <span class="key"><span class="swatch" style="background:var(--series-1)"></span>Выручка</span>
+        <span class="key"><span class="swatch" style="background:var(--series-2)"></span>Валовая прибыль</span>
       </div>
-      <div class="form-grid">
-        <label>Дата выполнения<input name="doneDate" type="date" required></label>
-        <label>Клиент<input name="client" required></label>
-        <label>Услуга<select name="service" data-options="services"></select></label>
-        <label>Объект<select name="objectType" data-options="objectTypes"></select></label>
-        <label>Канал<select name="channel" data-options="channels"></select></label>
-        <label>Статус<select name="status" data-options="orderStatuses"></select></label>
-        <label>Площадь, м²<input name="area" type="number" min="0" step="0.1"></label>
-        <label>Сумма факт<input name="revenue" type="number" min="0" step="100" required></label>
-        <label>Оплачено<input name="paid" type="number" min="0" step="100"></label>
-        <label>Клинеров<input name="cleaners" type="number" min="1" step="1" value="1"></label>
-        <label>Часы факт<input name="hours" type="number" min="0" step="0.5"></label>
-        <label>Оплата клинерам<input name="cleanerPay" type="number" min="0" step="100"></label>
-        <label>Химия/расходники<input name="chemistry" type="number" min="0" step="100"></label>
-        <label>Дорога<input name="transport" type="number" min="0" step="100"></label>
-        <label>Реклама<input name="ads" type="number" min="0" step="100"></label>
-        <label>Переделки<input name="reworkCost" type="number" min="0" step="100"></label>
-        <label class="full">Комментарий<textarea name="comment" rows="3"></textarea></label>
+      <div class="chart-box" id="monthlyChart"></div>
+    </div>
+    <div class="row2">
+      <div class="card">
+        <h2>Выручка по каналам</h2>
+        <p class="sub">Откуда приходят деньги</p>
+        <div class="chart-box" id="channelChart"></div>
       </div>
-      <div class="modal-actions">
-        <button class="button button-secondary" type="button" data-close-modal>Отмена</button>
-        <button class="button" type="submit">Сохранить заказ</button>
+      <div class="card">
+        <h2>Выручка по услугам</h2>
+        <p class="sub">Что приносит деньги</p>
+        <div class="chart-box" id="serviceChart"></div>
       </div>
-    </form>
-  </dialog>
+    </div>
+  </section>
 
-  <dialog id="expenseModal" class="modal">
-    <form method="dialog" class="modal-card" id="expenseForm">
-      <div class="modal-header">
-        <h2>Новый расход</h2>
-        <button class="icon-button" value="cancel" aria-label="Закрыть">×</button>
-      </div>
-      <div class="form-grid">
-        <label>Дата<input name="date" type="date" required></label>
-        <label>ID заказа<input name="orderId" placeholder="Например, 3"></label>
-        <label>Категория<select name="category" data-options="expenseCategories"></select></label>
-        <label>Сумма<input name="amount" type="number" min="0" step="100" required></label>
-        <label>Способ оплаты<select name="paymentMethod" data-options="paymentMethods"></select></label>
-        <label class="full">Комментарий<textarea name="comment" rows="3"></textarea></label>
-      </div>
-      <div class="modal-actions">
-        <button class="button button-secondary" type="button" data-close-modal>Отмена</button>
-        <button class="button" type="submit">Сохранить расход</button>
-      </div>
-    </form>
-  </dialog>
+  <section class="tables">
+    <div class="card">
+      <h2>Каналы привлечения</h2>
+      <p class="sub">Заявки, заказы и конверсия по каналам</p>
+      <div class="tbl-scroll"><table id="channelTable"></table></div>
+    </div>
+    <div class="card">
+      <h2>Услуги</h2>
+      <p class="sub">Экономика по видам услуг</p>
+      <div class="tbl-scroll"><table id="serviceTable"></table></div>
+    </div>
+  </section>
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js"></script>
+  <section class="card">
+    <div class="orders-head">
+      <h2>Заказы</h2>
+      <span class="count" id="ordersCount"></span>
+      <div class="spacer" style="flex:1"></div>
+      <select id="statusFilter" aria-label="Статус">
+        <option value="">Все статусы</option>
+        <option value="lead">Заявка</option>
+        <option value="work">В работе</option>
+        <option value="done">Выполнен</option>
+        <option value="cancelled">Отменён</option>
+      </select>
+    </div>
+    <div class="tbl-scroll"><table id="ordersTable"></table></div>
+    <div class="empty-state" id="emptyState" hidden>
+      <p>Пока нет ни одной заявки. Добавьте первую — или посмотрите, как выглядит дашборд с данными.</p>
+      <button class="btn primary" id="addFirstBtn">+ Новая заявка</button>
+      <button class="btn" id="demoBtn">Загрузить демо-данные</button>
+    </div>
+  </section>
+
+  <footer>
+    Данные хранятся локально в этом браузере. Регулярно делайте «Экспорт» — файл резервной копии можно восстановить через «Импорт» на любом устройстве.
+  </footer>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<dialog id="orderDialog">
+  <form class="modal-body" id="orderForm" method="dialog">
+    <h2 id="formTitle">Новая заявка</h2>
+    <div class="form-grid">
+      <div class="field">
+        <label for="f_leadDate">Дата заявки *</label>
+        <input type="date" id="f_leadDate" required>
+      </div>
+      <div class="field">
+        <label for="f_status">Статус</label>
+        <select id="f_status">
+          <option value="lead">Заявка</option>
+          <option value="work">В работе</option>
+          <option value="done">Выполнен</option>
+          <option value="cancelled">Отменён</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f_client">Клиент</label>
+        <input type="text" id="f_client" placeholder="Имя или объект">
+      </div>
+      <div class="field">
+        <label for="f_phone">Телефон</label>
+        <input type="tel" id="f_phone" placeholder="+7 …">
+      </div>
+      <div class="field">
+        <label for="f_channel">Канал привлечения</label>
+        <select id="f_channel"></select>
+      </div>
+      <div class="field">
+        <label for="f_service">Услуга</label>
+        <select id="f_service"></select>
+      </div>
+      <div class="field">
+        <label for="f_doneDate">Дата выполнения</label>
+        <input type="date" id="f_doneDate">
+      </div>
+      <div class="field">
+        <label for="f_area">Площадь, м²</label>
+        <input type="number" id="f_area" min="0" step="1" placeholder="0">
+      </div>
+      <div class="field">
+        <label for="f_revenue">Сумма заказа, ₽</label>
+        <input type="number" id="f_revenue" min="0" step="1" placeholder="0">
+      </div>
+      <div class="field">
+        <label for="f_costs">Прямые затраты, ₽ <span class="hint">(зарплата, химия, дорога)</span></label>
+        <input type="number" id="f_costs" min="0" step="1" placeholder="0">
+      </div>
+      <div class="field">
+        <label for="f_hours">Нормо-часы</label>
+        <input type="number" id="f_hours" min="0" step="0.5" placeholder="0">
+      </div>
+      <div class="field">
+        <label for="f_paid">Оплачено, ₽ <span class="hint">(остальное — долг)</span></label>
+        <input type="number" id="f_paid" min="0" step="1" placeholder="0">
+      </div>
+      <label class="checkline"><input type="checkbox" id="f_problem"> Проблемный / низкомаржинальный заказ</label>
+      <div class="field full">
+        <label for="f_notes">Заметки</label>
+        <textarea id="f_notes" rows="2" placeholder="Комментарий, адрес, особенности…"></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="cancelBtn">Отмена</button>
+      <button type="submit" class="btn primary" id="saveBtn">Сохранить</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+"use strict";
+
+/* ═══════════ константы ═══════════ */
+const LS_KEY = "prochistka.orders.v1";
+const LS_THEME = "prochistka.theme";
+const LS_PERIOD = "prochistka.period";
+
+const CHANNELS = ["Яндекс Директ","Сайт/SEO","Авито","Соцсети","Рекомендация","Повторный клиент","Дизайнер","Строитель/прораб","Другое"];
+const SERVICES = ["После ремонта","Генеральная","Поддерживающая","Мойка окон","Химчистка мебели","Озонирование","Другое"];
+const STATUS_LABEL = { lead: "Заявка", work: "В работе", done: "Выполнен", cancelled: "Отменён" };
+
+/* ═══════════ хранилище ═══════════ */
+function loadOrders() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS_KEY));
+    return Array.isArray(raw) ? raw : [];
+  } catch { return []; }
+}
+function saveOrders() {
+  localStorage.setItem(LS_KEY, JSON.stringify(orders));
+}
+let orders = loadOrders();
+
+/* ═══════════ форматирование ═══════════ */
+const fmtInt = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
+const rub = v => fmtInt.format(Math.round(v)) + " ₽";
+const pct = v => (isFinite(v) ? (Math.round(v * 1000) / 10).toLocaleString("ru-RU") + "%" : "—");
+const fmtDate = s => {
+  if (!s) return "—";
+  const [y, m, d] = s.split("-");
+  return `${d}.${m}.${y.slice(2)}`;
+};
+const MONTHS_SHORT = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+
+/* ═══════════ период / фильтры ═══════════ */
+const state = {
+  period: localStorage.getItem(LS_PERIOD) || "all",
+  from: null, to: null,          // для custom, строки YYYY-MM-DD
+  channel: "", service: "", status: ""
+};
+
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+function periodRange() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  const iso = d => d.toISOString().slice(0, 10);
+  switch (state.period) {
+    case "month": return [iso(new Date(Date.UTC(y, m, 1))), todayStr()];
+    case "prev": {
+      const a = new Date(Date.UTC(y, m - 1, 1));
+      const b = new Date(Date.UTC(y, m, 0));
+      return [iso(a), iso(b)];
+    }
+    case "90": {
+      const a = new Date(now); a.setDate(a.getDate() - 89);
+      return [iso(a), todayStr()];
+    }
+    case "year": return [`${y}-01-01`, todayStr()];
+    case "custom": return [state.from || "0000-01-01", state.to || "9999-12-31"];
+    default: return [null, null];
+  }
+}
+
+function inRange(dateStr, from, to) {
+  if (!dateStr) return false;
+  if (from && dateStr < from) return false;
+  if (to && dateStr > to) return false;
+  return true;
+}
+
+function dimMatch(o) {
+  if (state.channel && o.channel !== state.channel) return false;
+  if (state.service && o.service !== state.service) return false;
+  return true;
+}
+
+/* Заявки считаем по дате заявки; заказы и деньги — по дате выполнения (или дате заявки, если она не указана). */
+function moneyDate(o) { return o.doneDate || o.leadDate; }
+
+function slice() {
+  const [from, to] = periodRange();
+  const base = orders.filter(dimMatch);
+  return {
+    leads: base.filter(o => inRange(o.leadDate, from, to) && o.status !== "cancelled"),
+    done:  base.filter(o => o.status === "done" && inRange(moneyDate(o), from, to)),
+    all:   base.filter(o => inRange(o.leadDate, from, to) || (o.status === "done" && inRange(moneyDate(o), from, to))),
+    from, to
+  };
+}
+
+/* ═══════════ метрики ═══════════ */
+function metricsOf(leads, done) {
+  const revenue = done.reduce((s, o) => s + (+o.revenue || 0), 0);
+  const costs = done.reduce((s, o) => s + (+o.costs || 0), 0);
+  const hours = done.reduce((s, o) => s + (+o.hours || 0), 0);
+  const debt = done.reduce((s, o) => s + Math.max(0, (+o.revenue || 0) - (o.paid == null ? (+o.revenue || 0) : +o.paid)), 0);
+  const problems = done.filter(o => o.problem).length;
+  const profit = revenue - costs;
+  return {
+    leads: leads.length, orders: done.length,
+    conv: leads.length ? done.length / leads.length : NaN,
+    revenue, costs, profit,
+    margin: revenue ? profit / revenue : NaN,
+    avg: done.length ? revenue / done.length : NaN,
+    hours, pph: hours ? profit / hours : NaN,
+    debt, problems
+  };
+}
+
+/* ═══════════ отрисовка: KPI ═══════════ */
+function renderKpis(m) {
+  const el = document.getElementById("kpis");
+  el.replaceChildren();
+  const tiles = [
+    { label: "Выручка", value: rub(m.revenue), hero: true, note: `валовая прибыль ${rub(m.profit)}` },
+    { label: "Заявки", value: fmtInt.format(m.leads) },
+    { label: "Выполнено заказов", value: fmtInt.format(m.orders) },
+    { label: "Конверсия заявка → заказ", value: pct(m.conv) },
+    { label: "Маржа", value: pct(m.margin), note: `затраты ${rub(m.costs)}` },
+    { label: "Средний чек", value: isFinite(m.avg) ? rub(m.avg) : "—" },
+    { label: "Прибыль / нормо-час", value: isFinite(m.pph) ? rub(m.pph) : "—", note: `${fmtInt.format(m.hours)} н-ч` },
+    { label: "Долги клиентов", value: rub(m.debt), noteClass: m.debt > 0 ? "bad" : "good", note: m.debt > 0 ? "есть неоплаченные заказы" : "все заказы оплачены" },
+    { label: "Проблемные заказы", value: fmtInt.format(m.problems), noteClass: m.problems > 0 ? "bad" : "", note: m.problems > 0 ? "низкая маржа / претензии" : "" },
+  ];
+  for (const t of tiles) {
+    const d = document.createElement("div");
+    d.className = "tile" + (t.hero ? " hero" : "");
+    const l = document.createElement("div"); l.className = "label"; l.textContent = t.label;
+    const v = document.createElement("div"); v.className = "value"; v.textContent = t.value;
+    d.append(l, v);
+    if (t.note) {
+      const n = document.createElement("div");
+      n.className = "note" + (t.noteClass ? " " + t.noteClass : "");
+      n.textContent = t.note;
+      d.append(n);
+    }
+    el.append(d);
+  }
+}
+
+/* ═══════════ tooltip ═══════════ */
+const tip = document.getElementById("tip");
+function showTip(x, y, head, rows) {
+  tip.replaceChildren();
+  const h = document.createElement("div"); h.className = "t-head"; h.textContent = head;
+  tip.append(h);
+  for (const r of rows) {
+    const row = document.createElement("div"); row.className = "t-row";
+    const k = document.createElement("span"); k.className = "t-key"; k.style.background = r.color;
+    const n = document.createElement("span"); n.className = "t-name"; n.textContent = r.name;
+    const v = document.createElement("span"); v.className = "t-val"; v.textContent = r.value;
+    row.append(k, n, v); tip.append(row);
+  }
+  tip.style.display = "block";
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let left = x + 14, top = y - th - 10;
+  if (left + tw > window.innerWidth - 8) left = x - tw - 14;
+  if (top < 8) top = y + 14;
+  tip.style.left = left + window.scrollX + "px";
+  tip.style.top = top + window.scrollY + "px";
+}
+function hideTip() { tip.style.display = "none"; }
+
+/* ═══════════ SVG-помощники ═══════════ */
+const SVG_NS = "http://www.w3.org/2000/svg";
+function svgEl(name, attrs) {
+  const el = document.createElementNS(SVG_NS, name);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+function niceMax(v) {
+  if (v <= 0) return 1000;
+  const exp = Math.pow(10, Math.floor(Math.log10(v)));
+  const f = v / exp;
+  const nice = f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10;
+  return nice * exp;
+}
+/* столбик с закруглённым верхом (4px) и прямым основанием */
+function barPath(x, y, w, h, r) {
+  r = Math.min(r, w / 2, h);
+  if (h <= 0) return "";
+  return `M${x},${y + h} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + w - r},${y} Q${x + w},${y} ${x + w},${y + r} L${x + w},${y + h} Z`;
+}
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+/* ═══════════ график: месяцы (2 серии) ═══════════ */
+function monthKey(s) { return s ? s.slice(0, 7) : null; }
+
+function renderMonthlyChart(done) {
+  const box = document.getElementById("monthlyChart");
+  box.replaceChildren();
+
+  // собрать месяцы: если фильтр «всё время» — последние 12 месяцев с данными до текущего
+  const byMonth = new Map();
+  for (const o of done) {
+    const k = monthKey(moneyDate(o));
+    if (!k) continue;
+    const m = byMonth.get(k) || { rev: 0, prof: 0 };
+    m.rev += +o.revenue || 0;
+    m.prof += (+o.revenue || 0) - (+o.costs || 0);
+    byMonth.set(k, m);
+  }
+  const now = new Date();
+  let months = [];
+  const firstData = [...byMonth.keys()].sort()[0];
+  const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  if (firstData) {
+    const [fy, fm] = firstData.split("-").map(Number);
+    start.setFullYear(fy, fm - 1, 1); // от первого месяца с данными до текущего
+  }
+  const cur = new Date(start);
+  const end = new Date(now.getFullYear(), now.getMonth(), 1);
+  while (cur <= end && months.length < 24) {
+    months.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`);
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  if (months.length > 12) months = months.slice(-12);
+
+  if (!done.length) {
+    const e = document.createElement("div"); e.className = "chart-empty";
+    e.textContent = "Нет выполненных заказов за выбранный период";
+    box.append(e); return;
+  }
+
+  const W = 1080, H = 260, padL = 62, padR = 12, padT = 8, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const maxV = niceMax(Math.max(...months.map(k => (byMonth.get(k) || { rev: 0 }).rev), 1));
+  const yScale = v => padT + plotH - (v / maxV) * plotH;
+
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Выручка и прибыль по месяцам" });
+
+  // сетка + подписи оси Y (4 деления, круглые числа)
+  for (let i = 0; i <= 4; i++) {
+    const v = (maxV / 4) * i, y = yScale(v);
+    svg.append(svgEl("line", { x1: padL, x2: W - padR, y1: y, y2: y, stroke: i === 0 ? cssVar("--axis") : cssVar("--grid"), "stroke-width": 1 }));
+    const t = svgEl("text", { x: padL - 8, y: y + 4, "text-anchor": "end", "font-size": 11, fill: cssVar("--muted"), style: "font-variant-numeric: tabular-nums" });
+    t.textContent = fmtInt.format(v);
+    svg.append(t);
+  }
+
+  const band = plotW / months.length;
+  const barW = Math.min(24, (band - 16) / 2 - 1); // ≤24px, 2px зазор между парой
+  const s1 = cssVar("--series-1"), s2 = cssVar("--series-2");
+
+  months.forEach((k, i) => {
+    const m = byMonth.get(k) || { rev: 0, prof: 0 };
+    const cx = padL + band * i + band / 2;
+    // выручка | прибыль, 2px зазор между столбиками пары
+    const x1 = cx - barW - 1, x2 = cx + 1;
+    if (m.rev > 0) svg.append(svgEl("path", { d: barPath(x1, yScale(m.rev), barW, plotH + padT - yScale(m.rev), 4), fill: s1 }));
+    if (m.prof > 0) svg.append(svgEl("path", { d: barPath(x2, yScale(m.prof), barW, plotH + padT - yScale(m.prof), 4), fill: s2 }));
+    else if (m.prof < 0) svg.append(svgEl("rect", { x: x2, y: yScale(0), width: barW, height: 4, fill: cssVar("--bad"), rx: 2 }));
+
+    // подпись месяца
+    const [yy, mm] = k.split("-");
+    const t = svgEl("text", { x: cx, y: H - 10, "text-anchor": "middle", "font-size": 11, fill: cssVar("--muted") });
+    t.textContent = MONTHS_SHORT[+mm - 1] + (mm === "01" || i === 0 ? " ’" + yy.slice(2) : "");
+    svg.append(t);
+
+    // hit-зона на всю полосу месяца
+    const hit = svgEl("rect", { x: padL + band * i, y: padT, width: band, height: plotH, fill: "transparent" });
+    hit.style.cursor = "default";
+    const head = MONTHS_SHORT[+mm - 1] + " 20" + yy.slice(2);
+    hit.addEventListener("pointermove", ev => showTip(ev.clientX, ev.clientY, head, [
+      { color: s1, name: "Выручка", value: rub(m.rev) },
+      { color: s2, name: "Прибыль", value: rub(m.prof) },
+    ]));
+    hit.addEventListener("pointerleave", hideTip);
+    svg.append(hit);
+  });
+
+  box.append(svg);
+}
+
+/* ═══════════ график: горизонтальные бары ═══════════ */
+function renderBarList(boxId, rows, emptyText) {
+  const box = document.getElementById(boxId);
+  box.replaceChildren();
+  const data = rows.filter(r => r.value > 0).sort((a, b) => b.value - a.value);
+  if (!data.length) {
+    const e = document.createElement("div"); e.className = "chart-empty"; e.textContent = emptyText;
+    box.append(e); return;
+  }
+  const W = 520, rowH = 34, padT = 4, labelW = 150, valueW = 86;
+  const H = padT + data.length * rowH + 4;
+  const plotW = W - labelW - valueW - 10;
+  const maxV = Math.max(...data.map(d => d.value));
+  const s1 = cssVar("--series-1");
+
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
+  data.forEach((d, i) => {
+    const y = padT + i * rowH, cy = y + rowH / 2;
+    const bw = Math.max(3, (d.value / maxV) * plotW);
+
+    const name = svgEl("text", { x: labelW - 10, y: cy + 4, "text-anchor": "end", "font-size": 12.5, fill: cssVar("--ink-2") });
+    name.textContent = d.label;
+    svg.append(name);
+
+    // горизонтальный бар: закругление на конце данных, прямое основание слева
+    const h = 18, by = cy - h / 2, r = 4;
+    svg.append(svgEl("path", { d: `M${labelW},${by} L${labelW + bw - r},${by} Q${labelW + bw},${by} ${labelW + bw},${by + r} L${labelW + bw},${by + h - r} Q${labelW + bw},${by + h} ${labelW + bw - r},${by + h} L${labelW},${by + h} Z`, fill: s1 }));
+
+    const val = svgEl("text", { x: labelW + bw + 8, y: cy + 4, "font-size": 12.5, "font-weight": 650, fill: cssVar("--ink"), style: "font-variant-numeric: tabular-nums" });
+    val.textContent = rub(d.value);
+    svg.append(val);
+
+    const hit = svgEl("rect", { x: 0, y, width: W, height: rowH, fill: "transparent" });
+    hit.addEventListener("pointermove", ev => showTip(ev.clientX, ev.clientY, d.label, [
+      { color: s1, name: "Выручка", value: rub(d.value) },
+      { color: cssVar("--series-2"), name: "Прибыль", value: rub(d.profit) },
+      { color: cssVar("--muted"), name: "Заказы", value: String(d.count) },
+    ]));
+    hit.addEventListener("pointerleave", hideTip);
+    svg.append(hit);
+  });
+  box.append(svg);
+}
+
+/* ═══════════ таблицы-разрезы ═══════════ */
+function groupStats(leads, done, key, universe) {
+  return universe.map(name => {
+    const l = leads.filter(o => o[key] === name);
+    const d = done.filter(o => o[key] === name);
+    const revenue = d.reduce((s, o) => s + (+o.revenue || 0), 0);
+    const costs = d.reduce((s, o) => s + (+o.costs || 0), 0);
+    const hours = d.reduce((s, o) => s + (+o.hours || 0), 0);
+    return {
+      name, leads: l.length, orders: d.length, revenue,
+      profit: revenue - costs,
+      margin: revenue ? (revenue - costs) / revenue : NaN,
+      conv: l.length ? d.length / l.length : NaN,
+      pph: hours ? (revenue - costs) / hours : NaN
+    };
+  });
+}
+
+function renderDimTable(tableId, stats, cols) {
+  const tbl = document.getElementById(tableId);
+  tbl.replaceChildren();
+  const thead = document.createElement("thead");
+  const trh = document.createElement("tr");
+  for (const c of cols) {
+    const th = document.createElement("th");
+    th.textContent = c.h;
+    if (c.num) th.className = "num";
+    trh.append(th);
+  }
+  thead.append(trh); tbl.append(thead);
+
+  const tbody = document.createElement("tbody");
+  const active = stats.filter(s => s.leads || s.orders);
+  const rest = stats.filter(s => !s.leads && !s.orders);
+  active.sort((a, b) => b.revenue - a.revenue);
+  const rows = active.concat(rest);
+  for (const s of rows) {
+    const tr = document.createElement("tr");
+    for (const c of cols) {
+      const td = document.createElement("td");
+      if (c.num) td.className = "num";
+      const val = c.f(s);
+      if ((!s.leads && !s.orders) || val === "—") { const span = document.createElement("span"); span.className = "dim"; span.textContent = val; td.append(span); }
+      else td.textContent = val;
+      tr.append(td);
+    }
+    tbody.append(tr);
+  }
+  // итоговая строка
+  const tot = {
+    name: "Итого",
+    leads: stats.reduce((s, x) => s + x.leads, 0),
+    orders: stats.reduce((s, x) => s + x.orders, 0),
+    revenue: stats.reduce((s, x) => s + x.revenue, 0),
+    profit: stats.reduce((s, x) => s + x.profit, 0),
+  };
+  tot.conv = tot.leads ? tot.orders / tot.leads : NaN;
+  tot.margin = tot.revenue ? tot.profit / tot.revenue : NaN;
+  tot.pph = NaN;
+  const tr = document.createElement("tr"); tr.className = "total";
+  for (const c of cols) {
+    const td = document.createElement("td");
+    if (c.num) td.className = "num";
+    td.textContent = c.f(tot);
+    tr.append(td);
+  }
+  tbody.append(tr);
+  tbl.append(tbody);
+}
+
+/* ═══════════ таблица заказов ═══════════ */
+function orderDebt(o) {
+  if (o.status !== "done") return 0;
+  return Math.max(0, (+o.revenue || 0) - (o.paid == null ? (+o.revenue || 0) : +o.paid));
+}
+
+function renderOrders(list) {
+  const tbl = document.getElementById("ordersTable");
+  const empty = document.getElementById("emptyState");
+  tbl.replaceChildren();
+
+  let rows = list.slice().sort((a, b) => (moneyDate(b) || "").localeCompare(moneyDate(a) || ""));
+  if (state.status) rows = rows.filter(o => o.status === state.status);
+
+  document.getElementById("ordersCount").textContent =
+    rows.length ? `${rows.length} за период` : "";
+
+  if (!orders.length) { empty.hidden = false; tbl.hidden = true; return; }
+  empty.hidden = true; tbl.hidden = false;
+
+  const thead = document.createElement("thead");
+  const trh = document.createElement("tr");
+  for (const h of ["Дата", "Клиент", "Канал", "Услуга", "Статус", "Сумма", "Прибыль", "Оплата", ""]) {
+    const th = document.createElement("th");
+    th.textContent = h;
+    if (["Сумма", "Прибыль"].includes(h)) th.className = "num";
+    trh.append(th);
+  }
+  thead.append(trh); tbl.append(thead);
+
+  const tbody = document.createElement("tbody");
+  if (!rows.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 9; td.className = "dim"; td.style.textAlign = "center"; td.style.padding = "18px";
+    td.textContent = "Нет заказов по выбранным фильтрам";
+    tr.append(td); tbody.append(tr); tbl.append(tbody); return;
+  }
+
+  for (const o of rows) {
+    const tr = document.createElement("tr");
+    const cells = [];
+
+    const dt = document.createElement("td");
+    dt.textContent = fmtDate(o.status === "done" ? moneyDate(o) : o.leadDate);
+    cells.push(dt);
+
+    const cl = document.createElement("td");
+    cl.textContent = o.client || "—";
+    if (o.problem) {
+      const b = document.createElement("span"); b.className = "badge problem"; b.textContent = "проблемный";
+      b.style.marginLeft = "6px"; cl.append(b);
+    }
+    cells.push(cl);
+
+    const ch = document.createElement("td"); ch.textContent = o.channel || "—"; cells.push(ch);
+    const sv = document.createElement("td"); sv.textContent = o.service || "—"; cells.push(sv);
+
+    const st = document.createElement("td");
+    const badge = document.createElement("span");
+    badge.className = "badge " + o.status;
+    badge.textContent = STATUS_LABEL[o.status] || o.status;
+    st.append(badge); cells.push(st);
+
+    const rv = document.createElement("td"); rv.className = "num";
+    rv.textContent = o.revenue ? rub(+o.revenue) : "—"; cells.push(rv);
+
+    const pf = document.createElement("td"); pf.className = "num";
+    pf.textContent = o.status === "done" ? rub((+o.revenue || 0) - (+o.costs || 0)) : "—"; cells.push(pf);
+
+    const pay = document.createElement("td");
+    const debt = orderDebt(o);
+    if (o.status === "done") {
+      const b = document.createElement("span");
+      if (debt > 0) { b.className = "badge debt"; b.textContent = "долг " + rub(debt); }
+      else { b.className = "badge done"; b.textContent = "оплачен"; }
+      pay.append(b);
+    } else pay.textContent = "—";
+    cells.push(pay);
+
+    const act = document.createElement("td");
+    act.className = "row-actions"; act.style.textAlign = "right";
+    const eb = document.createElement("button"); eb.className = "btn subtle"; eb.textContent = "✎";
+    eb.title = "Редактировать"; eb.addEventListener("click", () => openForm(o.id));
+    const db = document.createElement("button"); db.className = "btn subtle danger"; db.textContent = "✕";
+    db.title = "Удалить";
+    db.addEventListener("click", () => {
+      if (confirm(`Удалить заказ «${o.client || fmtDate(o.leadDate)}»?`)) {
+        orders = orders.filter(x => x.id !== o.id);
+        saveOrders(); renderAll();
+      }
+    });
+    act.append(eb, db); cells.push(act);
+
+    tr.append(...cells); tbody.append(tr);
+  }
+  tbl.append(tbody);
+}
+
+/* ═══════════ форма заказа ═══════════ */
+const dlg = document.getElementById("orderDialog");
+let editingId = null;
+
+function fillSelect(sel, list, withAll) {
+  sel.replaceChildren();
+  if (withAll) {
+    const o = document.createElement("option"); o.value = ""; o.textContent = withAll;
+    sel.append(o);
+  }
+  for (const v of list) {
+    const o = document.createElement("option"); o.value = v; o.textContent = v;
+    sel.append(o);
+  }
+}
+fillSelect(document.getElementById("f_channel"), CHANNELS);
+fillSelect(document.getElementById("f_service"), SERVICES);
+fillSelect(document.getElementById("channelFilter"), CHANNELS, "Все каналы");
+fillSelect(document.getElementById("serviceFilter"), SERVICES, "Все услуги");
+
+function openForm(id) {
+  editingId = id || null;
+  const o = id ? orders.find(x => x.id === id) : null;
+  document.getElementById("formTitle").textContent = o ? "Редактирование заказа" : "Новая заявка";
+  document.getElementById("f_leadDate").value = o ? o.leadDate : todayStr();
+  document.getElementById("f_doneDate").value = o?.doneDate || "";
+  document.getElementById("f_client").value = o?.client || "";
+  document.getElementById("f_phone").value = o?.phone || "";
+  document.getElementById("f_channel").value = o?.channel || CHANNELS[0];
+  document.getElementById("f_service").value = o?.service || SERVICES[0];
+  document.getElementById("f_status").value = o?.status || "lead";
+  document.getElementById("f_area").value = o?.area ?? "";
+  document.getElementById("f_revenue").value = o?.revenue ?? "";
+  document.getElementById("f_costs").value = o?.costs ?? "";
+  document.getElementById("f_hours").value = o?.hours ?? "";
+  document.getElementById("f_paid").value = o?.paid ?? "";
+  document.getElementById("f_problem").checked = !!o?.problem;
+  document.getElementById("f_notes").value = o?.notes || "";
+  dlg.showModal();
+}
+
+document.getElementById("orderForm").addEventListener("submit", ev => {
+  ev.preventDefault();
+  const num = id => { const v = document.getElementById(id).value; return v === "" ? null : +v; };
+  const rec = {
+    id: editingId || (Date.now().toString(36) + Math.random().toString(36).slice(2, 7)),
+    leadDate: document.getElementById("f_leadDate").value,
+    doneDate: document.getElementById("f_doneDate").value || null,
+    client: document.getElementById("f_client").value.trim(),
+    phone: document.getElementById("f_phone").value.trim(),
+    channel: document.getElementById("f_channel").value,
+    service: document.getElementById("f_service").value,
+    status: document.getElementById("f_status").value,
+    area: num("f_area"), revenue: num("f_revenue"), costs: num("f_costs"),
+    hours: num("f_hours"), paid: num("f_paid"),
+    problem: document.getElementById("f_problem").checked,
+    notes: document.getElementById("f_notes").value.trim(),
+  };
+  if (!rec.leadDate) return;
+  if (rec.status === "done" && !rec.doneDate) rec.doneDate = rec.leadDate;
+  const i = orders.findIndex(x => x.id === rec.id);
+  if (i >= 0) orders[i] = rec; else orders.push(rec);
+  saveOrders(); dlg.close(); renderAll();
+});
+document.getElementById("cancelBtn").addEventListener("click", () => dlg.close());
+
+/* ═══════════ экспорт / импорт ═══════════ */
+function download(name, text, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+document.getElementById("exportBtn").addEventListener("click", () => {
+  download(`prochistka-backup-${todayStr()}.json`,
+    JSON.stringify({ app: "prochistka-dashboard", version: 1, exported: new Date().toISOString(), orders }, null, 2),
+    "application/json");
+});
+document.getElementById("exportCsvBtn").addEventListener("click", () => {
+  const esc = v => { v = String(v ?? ""); return /[";\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const head = ["Дата заявки","Дата выполнения","Клиент","Телефон","Канал","Услуга","Статус","Площадь м2","Сумма","Затраты","Нормо-часы","Оплачено","Долг","Проблемный","Заметки"];
+  const lines = [head.join(";")];
+  for (const o of orders) {
+    lines.push([o.leadDate, o.doneDate || "", o.client, o.phone, o.channel, o.service, STATUS_LABEL[o.status] || o.status,
+      o.area ?? "", o.revenue ?? "", o.costs ?? "", o.hours ?? "", o.paid ?? "", orderDebt(o) || "", o.problem ? "да" : "", o.notes].map(esc).join(";"));
+  }
+  download(`prochistka-orders-${todayStr()}.csv`, "﻿" + lines.join("\r\n"), "text/csv;charset=utf-8");
+});
+document.getElementById("importBtn").addEventListener("click", () => document.getElementById("importFile").click());
+document.getElementById("importFile").addEventListener("change", async ev => {
+  const file = ev.target.files[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    const list = Array.isArray(data) ? data : data.orders;
+    if (!Array.isArray(list)) throw new Error("bad format");
+    if (!confirm(`Импортировать ${list.length} заказ(ов)? Текущие данные (${orders.length}) будут заменены.`)) return;
+    orders = list;
+    saveOrders(); renderAll();
+  } catch {
+    alert("Не удалось прочитать файл. Нужен JSON, созданный кнопкой «Экспорт».");
+  }
+  ev.target.value = "";
+});
+
+/* ═══════════ демо-данные ═══════════ */
+function seedDemo() {
+  const d = (off) => { const t = new Date(); t.setDate(t.getDate() - off); return t.toISOString().slice(0, 10); };
+  orders = [
+    { leadDate: d(160), doneDate: d(154), client: "ЖК «Северный», кв. 84", channel: "Яндекс Директ", service: "После ремонта", status: "done", area: 78, revenue: 31500, costs: 16400, hours: 26, paid: 31500, problem: false, notes: "" },
+    { leadDate: d(120), doneDate: d(116), client: "Коттедж, Лесная 12", channel: "Яндекс Директ", service: "После ремонта", status: "done", area: 140, revenue: 47000, costs: 25572, hours: 42, paid: 47000, problem: false, notes: "Двухэтажный, окна отдельно" },
+    { leadDate: d(75), doneDate: d(71), client: "Офис «Альфа-Строй»", channel: "Рекомендация", service: "Генеральная", status: "done", area: 95, revenue: 24000, costs: 12100, hours: 20, paid: 14000, problem: false, notes: "Остаток по счёту" },
+    { leadDate: d(45), doneDate: d(41), client: "Кв. на Гагарина 5", channel: "Авито", service: "Химчистка мебели", status: "done", area: null, revenue: 9500, costs: 6800, hours: 8, paid: 9500, problem: true, notes: "Диван + 2 кресла, пятна вывели частично" },
+    { leadDate: d(20), doneDate: d(17), client: "ЖК «Панорама», кв. 12", channel: "Сайт/SEO", service: "Мойка окон", status: "done", area: 60, revenue: 7200, costs: 3100, hours: 6, paid: 7200, problem: false, notes: "" },
+    { leadDate: d(6), doneDate: null, client: "Дом в «Ясной поляне»", channel: "Дизайнер", service: "После ремонта", status: "work", area: 180, revenue: 58000, costs: null, hours: null, paid: null, problem: false, notes: "Выезд на замер сделан" },
+    { leadDate: d(2), doneDate: null, client: "Заявка с сайта, Ольга", channel: "Сайт/SEO", service: "Генеральная", status: "lead", area: 55, revenue: 14000, costs: null, hours: null, paid: null, problem: false, notes: "Перезвонить после 18:00" },
+    { leadDate: d(30), doneDate: null, client: "Кв. Строителей 3", channel: "Соцсети", service: "Поддерживающая", status: "cancelled", area: 45, revenue: 6000, costs: null, hours: null, paid: null, problem: false, notes: "Ушли к конкурентам по цене" },
+  ].map((o, i) => ({ id: "demo-" + i, ...o }));
+  saveOrders(); renderAll();
+}
+document.getElementById("demoBtn").addEventListener("click", seedDemo);
+document.getElementById("addFirstBtn").addEventListener("click", () => openForm());
+document.getElementById("addBtn").addEventListener("click", () => openForm());
+
+/* ═══════════ фильтры: события ═══════════ */
+const seg = document.getElementById("periodSeg");
+function syncSeg() {
+  for (const b of seg.querySelectorAll("button"))
+    b.setAttribute("aria-pressed", String(b.dataset.period === state.period));
+  document.getElementById("customRange").classList.toggle("show", state.period === "custom");
+}
+seg.addEventListener("click", ev => {
+  const b = ev.target.closest("button[data-period]");
+  if (!b) return;
+  state.period = b.dataset.period;
+  localStorage.setItem(LS_PERIOD, state.period);
+  syncSeg(); renderAll();
+});
+document.getElementById("fromDate").addEventListener("change", ev => { state.from = ev.target.value || null; renderAll(); });
+document.getElementById("toDate").addEventListener("change", ev => { state.to = ev.target.value || null; renderAll(); });
+document.getElementById("channelFilter").addEventListener("change", ev => { state.channel = ev.target.value; renderAll(); });
+document.getElementById("serviceFilter").addEventListener("change", ev => { state.service = ev.target.value; renderAll(); });
+document.getElementById("statusFilter").addEventListener("change", ev => { state.status = ev.target.value; renderAll(); });
+
+/* ═══════════ тема ═══════════ */
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  localStorage.setItem(LS_THEME, t);
+}
+(function initTheme() {
+  const saved = localStorage.getItem(LS_THEME);
+  applyTheme(saved || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+})();
+document.getElementById("themeBtn").addEventListener("click", () => {
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+  renderAll(); // перерисовать SVG с цветами новой темы
+});
+
+/* ═══════════ главный рендер ═══════════ */
+function renderAll() {
+  const s = slice();
+  const m = metricsOf(s.leads, s.done);
+  renderKpis(m);
+  renderMonthlyChart(s.done);
+
+  const chStats = groupStats(s.leads, s.done, "channel", CHANNELS);
+  const svStats = groupStats(s.leads, s.done, "service", SERVICES);
+
+  renderBarList("channelChart",
+    chStats.map(x => ({ label: x.name, value: x.revenue, profit: x.profit, count: x.orders })),
+    "Нет выручки за период");
+  renderBarList("serviceChart",
+    svStats.map(x => ({ label: x.name, value: x.revenue, profit: x.profit, count: x.orders })),
+    "Нет выручки за период");
+
+  renderDimTable("channelTable", chStats, [
+    { h: "Канал", f: s => s.name },
+    { h: "Заявки", num: 1, f: s => fmtInt.format(s.leads) },
+    { h: "Заказы", num: 1, f: s => fmtInt.format(s.orders) },
+    { h: "Выручка", num: 1, f: s => s.revenue ? rub(s.revenue) : "—" },
+    { h: "Прибыль", num: 1, f: s => s.orders ? rub(s.profit) : "—" },
+    { h: "Конверсия", num: 1, f: s => pct(s.conv) },
+  ]);
+  renderDimTable("serviceTable", svStats, [
+    { h: "Услуга", f: s => s.name },
+    { h: "Заявки", num: 1, f: s => fmtInt.format(s.leads) },
+    { h: "Заказы", num: 1, f: s => fmtInt.format(s.orders) },
+    { h: "Выручка", num: 1, f: s => s.revenue ? rub(s.revenue) : "—" },
+    { h: "Маржа", num: 1, f: s => pct(s.margin) },
+    { h: "₽ / н-час", num: 1, f: s => isFinite(s.pph) ? rub(s.pph) : "—" },
+  ]);
+
+  renderOrders(s.all);
+
+  const note = document.getElementById("scopeNote");
+  note.textContent = s.from ? `${fmtDate(s.from)} — ${fmtDate(s.to || todayStr())}` : "за всё время";
+}
+
+syncSeg();
+renderAll();
+</script>
 </body>
 </html>
