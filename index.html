@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PRO-CHISTKA — бизнес-дашборд</title>
+  <title>PRO-CHISTKA — бизнес-дашборд v2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -12,8 +15,8 @@
       <div class="brand">
         <div class="brand-mark">PC</div>
         <div>
-          <div class="brand-name">PRO-CHISTKA</div>
-          <div class="brand-subtitle">Business Dashboard</div>
+          <div class="brand-name orbitron">PRO-CHISTKA</div>
+          <div class="brand-subtitle">Business Dashboard v2</div>
         </div>
       </div>
 
@@ -29,8 +32,8 @@
       <div class="sidebar-card">
         <span class="status-dot"></span>
         <div>
-          <strong id="dataSourceLabel">Демо-режим</strong>
-          <p>После подключения Google Sheets данные будут подтягиваться из таблицы.</p>
+          <strong id="dataSourceLabel">Локальный режим</strong>
+          <p>Google Sheets подключается через Apps Script. До подключения данные хранятся в браузере.</p>
         </div>
       </div>
     </aside>
@@ -42,26 +45,46 @@
           <h1 id="pageTitle">Пульс бизнеса</h1>
         </div>
         <div class="topbar-actions">
-          <select id="monthFilter" aria-label="Фильтр по месяцу"></select>
+          <button class="button button-secondary" id="themeBtn">Тема</button>
           <button class="button button-secondary" id="refreshBtn">Обновить</button>
           <button class="button" data-open-modal="leadModal">+ Заявка</button>
         </div>
       </header>
 
+      <section class="global-filters">
+        <div class="segmented" id="periodButtons">
+          <button data-period="all">Всё время</button>
+          <button data-period="month">Текущий месяц</button>
+          <button data-period="prev">Прошлый месяц</button>
+          <button data-period="90">90 дней</button>
+          <button data-period="year">Год</button>
+          <button data-period="custom">Свой период</button>
+        </div>
+        <div class="custom-range" id="customRange">
+          <input type="date" id="fromDate" aria-label="Дата от">
+          <span>—</span>
+          <input type="date" id="toDate" aria-label="Дата до">
+        </div>
+        <select id="channelFilter" aria-label="Канал"></select>
+        <select id="serviceFilter" aria-label="Услуга"></select>
+        <select id="statusFilter" aria-label="Статус"></select>
+        <button class="ghost-button" id="resetFiltersBtn">Сброс</button>
+      </section>
+
       <section id="dashboard" class="view active">
         <div class="hero-grid">
           <article class="hero-card">
             <div>
-              <p class="card-label">Прибыль месяца</p>
+              <p class="card-label">Чистая валовая прибыль</p>
               <h2 id="heroProfit">0 ₽</h2>
-              <p id="heroProfitHint">С учётом прямых затрат</p>
+              <p id="heroProfitHint">Выручка − прямые затраты</p>
             </div>
             <div class="hero-meter">
               <span id="heroMargin">0%</span>
               <small>маржа</small>
             </div>
           </article>
-          <article class="focus-card" id="focusCard">
+          <article class="focus-card">
             <p class="card-label">Что требует внимания</p>
             <div id="focusList" class="focus-list"></div>
           </article>
@@ -69,37 +92,60 @@
 
         <div class="metric-grid" id="metricGrid"></div>
 
-        <div class="two-column">
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">Каналы</p>
-                <h2>Откуда приходят деньги</h2>
-              </div>
+        <section class="chart-panel panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Динамика</p>
+              <h2>Выручка, прибыль и маржа по месяцам</h2>
             </div>
-            <div id="channelBars" class="bar-list"></div>
-          </section>
+            <span class="scope-note" id="scopeNote"></span>
+          </div>
+          <div id="monthlyChart" class="chart-box big-chart"></div>
+        </section>
 
+        <div class="analytics-grid">
           <section class="panel">
             <div class="panel-header">
-              <div>
-                <p class="eyebrow">Заказы</p>
-                <h2>Последние и проблемные</h2>
-              </div>
-              <button class="ghost-button" data-view-shortcut="orders">Все заказы</button>
+              <div><p class="eyebrow">Каналы</p><h2>Выручка и прибыль</h2></div>
             </div>
-            <div id="recentOrders" class="compact-list"></div>
+            <div id="channelChart" class="bar-chart"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <div><p class="eyebrow">Услуги</p><h2>Экономика направлений</h2></div>
+            </div>
+            <div id="serviceChart" class="bar-chart"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <div><p class="eyebrow">Себестоимость</p><h2>Расходы по категориям</h2></div>
+            </div>
+            <div id="expenseChart" class="bar-chart"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <div><p class="eyebrow">Воронка</p><h2>Заявки → заказы</h2></div>
+            </div>
+            <div id="funnelChart" class="funnel"></div>
           </section>
         </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Контроль</p>
+              <h2>Последние и проблемные заказы</h2>
+            </div>
+            <button class="ghost-button" data-view-shortcut="orders">Все заказы</button>
+          </div>
+          <div id="recentOrders" class="compact-list"></div>
+        </section>
       </section>
 
       <section id="leads" class="view">
         <div class="panel">
           <div class="panel-header">
-            <div>
-              <p class="eyebrow">CRM</p>
-              <h2>Заявки</h2>
-            </div>
+            <div><p class="eyebrow">CRM</p><h2>Заявки</h2></div>
             <button class="button" data-open-modal="leadModal">+ Добавить заявку</button>
           </div>
           <div class="toolbar">
@@ -108,17 +154,7 @@
           </div>
           <div class="table-wrap">
             <table>
-              <thead>
-                <tr>
-                  <th>Дата</th>
-                  <th>Клиент</th>
-                  <th>Источник</th>
-                  <th>Услуга</th>
-                  <th>Сумма</th>
-                  <th>Статус</th>
-                  <th>След. контакт</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Дата</th><th>Клиент</th><th>Источник</th><th>Услуга</th><th>Сумма</th><th>Статус</th><th>След. контакт</th><th></th></tr></thead>
               <tbody id="leadsTable"></tbody>
             </table>
           </div>
@@ -128,31 +164,17 @@
       <section id="orders" class="view">
         <div class="panel">
           <div class="panel-header">
-            <div>
-              <p class="eyebrow">Операции</p>
-              <h2>Заказы</h2>
-            </div>
+            <div><p class="eyebrow">Операции</p><h2>Заказы</h2></div>
             <button class="button" data-open-modal="orderModal">+ Добавить заказ</button>
           </div>
           <div class="toolbar">
             <input id="orderSearch" type="search" placeholder="Поиск по клиенту, услуге, адресу..." />
-            <select id="orderStatusFilter"><option value="">Все статусы</option></select>
             <select id="orderSignalFilter"><option value="">Все сигналы</option></select>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
-                <tr>
-                  <th>Дата</th>
-                  <th>Клиент</th>
-                  <th>Услуга</th>
-                  <th>Выручка</th>
-                  <th>Затраты</th>
-                  <th>Прибыль</th>
-                  <th>Маржа</th>
-                  <th>₽/час</th>
-                  <th>Сигнал</th>
-                </tr>
+                <tr><th>Дата</th><th>Клиент</th><th>Услуга</th><th>Выручка</th><th>Затраты</th><th>Прибыль</th><th>Маржа</th><th>₽/час</th><th>Долг</th><th>Сигнал</th><th></th></tr>
               </thead>
               <tbody id="ordersTable"></tbody>
             </table>
@@ -163,24 +185,12 @@
       <section id="expenses" class="view">
         <div class="panel">
           <div class="panel-header">
-            <div>
-              <p class="eyebrow">Деньги</p>
-              <h2>Расходы</h2>
-            </div>
+            <div><p class="eyebrow">Деньги</p><h2>Расходы</h2></div>
             <button class="button" data-open-modal="expenseModal">+ Добавить расход</button>
           </div>
           <div class="table-wrap">
             <table>
-              <thead>
-                <tr>
-                  <th>Дата</th>
-                  <th>Заказ</th>
-                  <th>Категория</th>
-                  <th>Сумма</th>
-                  <th>Способ оплаты</th>
-                  <th>Комментарий</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Дата</th><th>Заказ</th><th>Категория</th><th>Сумма</th><th>Оплата</th><th>Комментарий</th><th></th></tr></thead>
               <tbody id="expensesTable"></tbody>
             </table>
           </div>
@@ -189,17 +199,17 @@
 
       <section id="analytics" class="view">
         <div class="analytics-grid">
-          <section class="panel">
-            <div class="panel-header"><h2>Выручка по услугам</h2></div>
-            <div id="serviceBars" class="bar-list"></div>
-          </section>
-          <section class="panel">
-            <div class="panel-header"><h2>Прибыль по каналам</h2></div>
-            <div id="profitChannelBars" class="bar-list"></div>
+          <section class="panel wide-panel">
+            <div class="panel-header"><div><p class="eyebrow">План</p><h2>План/факт месяца</h2></div></div>
+            <div id="planFact" class="plan-card"></div>
           </section>
           <section class="panel wide-panel">
-            <div class="panel-header"><h2>План/факт месяца</h2></div>
-            <div id="planFact" class="plan-card"></div>
+            <div class="panel-header"><div><p class="eyebrow">Каналы</p><h2>Каналы привлечения</h2></div></div>
+            <div class="table-wrap"><table id="channelTable"></table></div>
+          </section>
+          <section class="panel wide-panel">
+            <div class="panel-header"><div><p class="eyebrow">Услуги</p><h2>Услуги и экономика</h2></div></div>
+            <div class="table-wrap"><table id="serviceTable"></table></div>
           </section>
         </div>
       </section>
@@ -207,13 +217,19 @@
       <section id="settings" class="view">
         <div class="panel">
           <div class="panel-header">
-            <div>
-              <p class="eyebrow">Правила бизнеса</p>
-              <h2>Настройки</h2>
+            <div><p class="eyebrow">Правила бизнеса</p><h2>Настройки</h2></div>
+            <div class="panel-actions">
+              <button class="button button-secondary" id="exportJsonBtn">Экспорт JSON</button>
+              <button class="button button-secondary" id="exportCsvBtn">CSV заказов</button>
+              <button class="button button-secondary" id="importJsonBtn">Импорт JSON</button>
+              <button class="button" id="saveSettingsBtn">Сохранить</button>
+              <input type="file" id="importJsonFile" accept="application/json" hidden>
             </div>
-            <button class="button" id="saveSettingsBtn">Сохранить настройки</button>
           </div>
           <form id="settingsForm" class="settings-grid"></form>
+          <div class="settings-note">
+            Google Sheets v2: <a href="https://docs.google.com/spreadsheets/d/1zjar439J_-xwZQNcgHfdHNt8oVGukq7O33OiIInoIrE/edit" target="_blank" rel="noreferrer">открыть базу данных</a>
+          </div>
         </div>
       </section>
     </main>
@@ -221,14 +237,11 @@
 
   <dialog id="leadModal" class="modal">
     <form method="dialog" class="modal-card" id="leadForm">
-      <div class="modal-header">
-        <h2>Новая заявка</h2>
-        <button class="icon-button" value="cancel" aria-label="Закрыть">×</button>
-      </div>
+      <div class="modal-header"><h2 id="leadFormTitle">Новая заявка</h2><button class="icon-button" value="cancel" aria-label="Закрыть">×</button></div>
       <div class="form-grid">
         <label>Дата<input name="date" type="date" required></label>
-        <label>Клиент<input name="client" placeholder="Имя клиента" required></label>
-        <label>Телефон<input name="phone" placeholder="+7..." required></label>
+        <label>Клиент<input name="client" required></label>
+        <label>Телефон<input name="phone" placeholder="+7..."></label>
         <label>Источник<select name="source" data-options="channels"></select></label>
         <label>Услуга<select name="service" data-options="services"></select></label>
         <label>Объект<select name="objectType" data-options="objectTypes"></select></label>
@@ -236,65 +249,72 @@
         <label>Предв. сумма<input name="amount" type="number" min="0" step="100"></label>
         <label>Статус<select name="status" data-options="leadStatuses"></select></label>
         <label>Следующий контакт<input name="nextContact" type="date"></label>
-        <label class="full">Комментарий<textarea name="comment" rows="3" placeholder="Что важно не забыть"></textarea></label>
+        <label class="full">Комментарий<textarea name="comment" rows="3"></textarea></label>
       </div>
-      <div class="modal-actions">
-        <button class="button button-secondary" value="cancel" type="button" data-close-modal>Отмена</button>
-        <button class="button" type="submit">Сохранить заявку</button>
-      </div>
+      <input type="hidden" name="id">
+      <div class="modal-actions"><button class="button button-secondary" type="button" data-close-modal>Отмена</button><button class="button" type="submit">Сохранить</button></div>
     </form>
   </dialog>
 
   <dialog id="orderModal" class="modal">
-    <form method="dialog" class="modal-card" id="orderForm">
-      <div class="modal-header">
-        <h2>Новый заказ</h2>
-        <button class="icon-button" value="cancel" aria-label="Закрыть">×</button>
-      </div>
+    <form method="dialog" class="modal-card wide-modal" id="orderForm">
+      <div class="modal-header"><h2 id="orderFormTitle">Новый заказ</h2><button class="icon-button" value="cancel" aria-label="Закрыть">×</button></div>
+      <div class="form-section-title">Основное</div>
       <div class="form-grid">
         <label>Дата выполнения<input name="doneDate" type="date" required></label>
         <label>Клиент<input name="client" required></label>
+        <label>Телефон<input name="phone"></label>
+        <label>Адрес/район<input name="address"></label>
         <label>Услуга<select name="service" data-options="services"></select></label>
         <label>Объект<select name="objectType" data-options="objectTypes"></select></label>
         <label>Канал<select name="channel" data-options="channels"></select></label>
         <label>Статус<select name="status" data-options="orderStatuses"></select></label>
         <label>Площадь, м²<input name="area" type="number" min="0" step="0.1"></label>
-        <label>Сумма факт<input name="revenue" type="number" min="0" step="100" required></label>
-        <label>Оплачено<input name="paid" type="number" min="0" step="100"></label>
         <label>Клинеров<input name="cleaners" type="number" min="1" step="1" value="1"></label>
         <label>Часы факт<input name="hours" type="number" min="0" step="0.5"></label>
+        <label>Часы собственника<input name="ownerHours" type="number" min="0" step="0.5"></label>
+      </div>
+      <div class="form-section-title">Финансы и себестоимость</div>
+      <div class="form-grid">
+        <label>Сумма факт<input name="revenue" type="number" min="0" step="100" required></label>
+        <label>Оплачено<input name="paid" type="number" min="0" step="100"></label>
         <label>Оплата клинерам<input name="cleanerPay" type="number" min="0" step="100"></label>
+        <label>Оплата бригадиру<input name="brigadierPay" type="number" min="0" step="100"></label>
         <label>Химия/расходники<input name="chemistry" type="number" min="0" step="100"></label>
         <label>Дорога<input name="transport" type="number" min="0" step="100"></label>
+        <label>Парковка<input name="parking" type="number" min="0" step="100"></label>
+        <label>Оборудование<input name="equipment" type="number" min="0" step="100"></label>
         <label>Реклама<input name="ads" type="number" min="0" step="100"></label>
+        <label>Комиссия партнёру<input name="partnerCommission" type="number" min="0" step="100"></label>
         <label>Переделки<input name="reworkCost" type="number" min="0" step="100"></label>
+        <label>Прочее<input name="otherCosts" type="number" min="0" step="100"></label>
+      </div>
+      <div class="form-section-title">Качество</div>
+      <div class="form-grid">
+        <label>Оценка качества<select name="quality" data-options="ratings"></select></label>
+        <label>Жалобы<select name="complaint" data-options="yesNo"></select></label>
+        <label>Переделка<select name="rework" data-options="yesNo"></select></label>
+        <label>Чек-лист<select name="checklist" data-options="yesNo"></select></label>
         <label class="full">Комментарий<textarea name="comment" rows="3"></textarea></label>
       </div>
-      <div class="modal-actions">
-        <button class="button button-secondary" type="button" data-close-modal>Отмена</button>
-        <button class="button" type="submit">Сохранить заказ</button>
-      </div>
+      <input type="hidden" name="id">
+      <div class="modal-actions"><button class="button button-secondary" type="button" data-close-modal>Отмена</button><button class="button" type="submit">Сохранить заказ</button></div>
     </form>
   </dialog>
 
   <dialog id="expenseModal" class="modal">
     <form method="dialog" class="modal-card" id="expenseForm">
-      <div class="modal-header">
-        <h2>Новый расход</h2>
-        <button class="icon-button" value="cancel" aria-label="Закрыть">×</button>
-      </div>
+      <div class="modal-header"><h2 id="expenseFormTitle">Новый расход</h2><button class="icon-button" value="cancel" aria-label="Закрыть">×</button></div>
       <div class="form-grid">
         <label>Дата<input name="date" type="date" required></label>
-        <label>ID заказа<input name="orderId" placeholder="Например, 3"></label>
+        <label>ID заказа<input name="orderId"></label>
         <label>Категория<select name="category" data-options="expenseCategories"></select></label>
         <label>Сумма<input name="amount" type="number" min="0" step="100" required></label>
         <label>Способ оплаты<select name="paymentMethod" data-options="paymentMethods"></select></label>
         <label class="full">Комментарий<textarea name="comment" rows="3"></textarea></label>
       </div>
-      <div class="modal-actions">
-        <button class="button button-secondary" type="button" data-close-modal>Отмена</button>
-        <button class="button" type="submit">Сохранить расход</button>
-      </div>
+      <input type="hidden" name="id">
+      <div class="modal-actions"><button class="button button-secondary" type="button" data-close-modal>Отмена</button><button class="button" type="submit">Сохранить расход</button></div>
     </form>
   </dialog>
 
