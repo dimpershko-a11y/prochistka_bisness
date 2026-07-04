@@ -355,7 +355,7 @@
         <input type="number" id="f_hours" min="0" step="0.5" placeholder="0">
       </div>
       <div class="field">
-        <label for="f_paid">Оплачено, ₽ <span class="hint">(остальное — долг)</span></label>
+        <label for="f_paid">Оплачено, ₽ <span class="hint">(пусто — оплачен полностью; меньше суммы — остальное долг)</span></label>
         <input type="number" id="f_paid" min="0" step="1" placeholder="0">
       </div>
       <label class="checkline"><input type="checkbox" id="f_problem"> Проблемный / низкомаржинальный заказ</label>
@@ -384,11 +384,71 @@ const SERVICES = ["После ремонта","Генеральная","Подд
 const STATUS_LABEL = { lead: "Заявка", work: "В работе", done: "Выполнен", cancelled: "Отменён" };
 
 /* ═══════════ хранилище ═══════════ */
+const LS_KEY_OLD = "prochistka_business_dashboard_v1"; // предыдущая версия дашборда
+
+/* Перенос данных из старой версии: заказы + несконвертированные заявки. */
+function migrateOldState() {
+  let old;
+  try { old = JSON.parse(localStorage.getItem(LS_KEY_OLD)); } catch { return null; }
+  if (!old || (!Array.isArray(old.orders) && !Array.isArray(old.leads))) return null;
+  const out = [];
+  const leads = Array.isArray(old.leads) ? old.leads : [];
+  const leadById = new Map(leads.map(l => [l.id, l]));
+  for (const o of (old.orders || [])) {
+    const lead = leadById.get(o.leadId);
+    const costs = ["cleanerPay","brigadierPay","chemistry","transport","parking","equipment","ads","partnerCommission","reworkCost","otherCosts"]
+      .reduce((s, k) => s + (+o[k] || 0), 0);
+    const st = o.status || "";
+    out.push({
+      id: "old-o" + o.id,
+      leadDate: o.requestDate || o.doneDate || todayStr(),
+      doneDate: o.doneDate || null,
+      client: o.client || lead?.client || "",
+      phone: lead?.phone || "",
+      channel: CHANNELS.includes(o.channel) ? o.channel : "Другое",
+      service: SERVICES.includes(o.service) ? o.service : "Другое",
+      status: /Выполнена|Оплачена/.test(st) ? "done" : st === "Отменена" ? "cancelled" : "work",
+      area: o.area ?? null,
+      revenue: +o.revenue || +o.plannedRevenue || null,
+      costs: costs || null,
+      hours: +o.normHours || +o.hours || null,
+      paid: o.paid == null ? null : +o.paid,
+      problem: !!(o.complaint || o.rework || st === "Проблема"),
+      notes: o.comment || ""
+    });
+  }
+  for (const l of leads) {
+    if (l.orderId) continue; // уже перенесена как заказ
+    out.push({
+      id: "old-l" + l.id,
+      leadDate: l.date || todayStr(),
+      doneDate: null,
+      client: l.client || "",
+      phone: l.phone || "",
+      channel: CHANNELS.includes(l.source) ? l.source : "Другое",
+      service: SERVICES.includes(l.service) ? l.service : "Другое",
+      status: /Отказ|Дубль/.test(l.status || "") ? "cancelled" : "lead",
+      area: l.area ?? null,
+      revenue: +l.finalAmount || +l.amount || null,
+      costs: null, hours: null, paid: null,
+      problem: false,
+      notes: l.comment || ""
+    });
+  }
+  return out;
+}
+
 function loadOrders() {
   try {
     const raw = JSON.parse(localStorage.getItem(LS_KEY));
-    return Array.isArray(raw) ? raw : [];
-  } catch { return []; }
+    if (Array.isArray(raw)) return raw;
+  } catch { /* повреждённые данные — пробуем миграцию */ }
+  const migrated = migrateOldState();
+  if (migrated) {
+    localStorage.setItem(LS_KEY, JSON.stringify(migrated));
+    return migrated;
+  }
+  return [];
 }
 function saveOrders() {
   localStorage.setItem(LS_KEY, JSON.stringify(orders));
@@ -413,22 +473,21 @@ const state = {
   channel: "", service: "", status: ""
 };
 
-function todayStr() { return new Date().toISOString().slice(0, 10); }
+/* календарные даты — всегда локальные, не UTC */
+function isoLocal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function todayStr() { return isoLocal(new Date()); }
 
 function periodRange() {
   const now = new Date();
   const y = now.getFullYear(), m = now.getMonth();
-  const iso = d => d.toISOString().slice(0, 10);
   switch (state.period) {
-    case "month": return [iso(new Date(Date.UTC(y, m, 1))), todayStr()];
-    case "prev": {
-      const a = new Date(Date.UTC(y, m - 1, 1));
-      const b = new Date(Date.UTC(y, m, 0));
-      return [iso(a), iso(b)];
-    }
+    case "month": return [isoLocal(new Date(y, m, 1)), todayStr()];
+    case "prev": return [isoLocal(new Date(y, m - 1, 1)), isoLocal(new Date(y, m, 0))];
     case "90": {
       const a = new Date(now); a.setDate(a.getDate() - 89);
-      return [iso(a), todayStr()];
+      return [isoLocal(a), todayStr()];
     }
     case "year": return [`${y}-01-01`, todayStr()];
     case "custom": return [state.from || "0000-01-01", state.to || "9999-12-31"];
@@ -458,7 +517,8 @@ function slice() {
   return {
     leads: base.filter(o => inRange(o.leadDate, from, to) && o.status !== "cancelled"),
     done:  base.filter(o => o.status === "done" && inRange(moneyDate(o), from, to)),
-    all:   base.filter(o => inRange(o.leadDate, from, to) || (o.status === "done" && inRange(moneyDate(o), from, to))),
+    // выполненные попадают в таблицу по дате выполнения (как в KPI), остальные — по дате заявки
+    all:   base.filter(o => o.status === "done" ? inRange(moneyDate(o), from, to) : inRange(o.leadDate, from, to)),
     from, to
   };
 }
@@ -556,6 +616,12 @@ function barPath(x, y, w, h, r) {
   if (h <= 0) return "";
   return `M${x},${y + h} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + w - r},${y} Q${x + w},${y} ${x + w},${y + r} L${x + w},${y + h} Z`;
 }
+/* столбик вниз от базовой линии (для отрицательных значений), закругление снизу */
+function barPathDown(x, y, w, h, r) {
+  r = Math.min(r, w / 2, h);
+  if (h <= 0) return "";
+  return `M${x},${y} L${x + w},${y} L${x + w},${y + h - r} Q${x + w},${y + h} ${x + w - r},${y + h} L${x + r},${y + h} Q${x},${y + h} ${x},${y + h - r} L${x},${y} Z`;
+}
 function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
@@ -563,7 +629,7 @@ function cssVar(name) {
 /* ═══════════ график: месяцы (2 серии) ═══════════ */
 function monthKey(s) { return s ? s.slice(0, 7) : null; }
 
-function renderMonthlyChart(done) {
+function renderMonthlyChart(done, rangeTo) {
   const box = document.getElementById("monthlyChart");
   box.replaceChildren();
 
@@ -577,39 +643,44 @@ function renderMonthlyChart(done) {
     m.prof += (+o.revenue || 0) - (+o.costs || 0);
     byMonth.set(k, m);
   }
-  const now = new Date();
-  let months = [];
-  const firstData = [...byMonth.keys()].sort()[0];
-  const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-  if (firstData) {
-    const [fy, fm] = firstData.split("-").map(Number);
-    start.setFullYear(fy, fm - 1, 1); // от первого месяца с данными до текущего
-  }
-  const cur = new Date(start);
-  const end = new Date(now.getFullYear(), now.getMonth(), 1);
-  while (cur <= end && months.length < 24) {
-    months.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`);
-    cur.setMonth(cur.getMonth() + 1);
-  }
-  if (months.length > 12) months = months.slice(-12);
-
-  if (!done.length) {
+  if (!byMonth.size) {
     const e = document.createElement("div"); e.className = "chart-empty";
     e.textContent = "Нет выполненных заказов за выбранный период";
     box.append(e); return;
   }
 
+  // окно: последние 12 месяцев, заканчивая концом выбранного периода (или текущим месяцем),
+  // но не раньше последнего месяца с данными — чтобы данные никогда не выпадали из графика
+  const now = new Date();
+  const months = [];
+  const keys = [...byMonth.keys()].sort();
+  const parseMonth = k => { const [y, m] = k.split("-").map(Number); return new Date(y, m - 1, 1); };
+  const rangeEnd = rangeTo ? parseMonth(rangeTo.slice(0, 7)) : new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastData = parseMonth(keys[keys.length - 1]);
+  const end = lastData > rangeEnd ? lastData : rangeEnd;
+  const cur = new Date(end.getFullYear(), end.getMonth() - 11, 1);
+  const firstData = parseMonth(keys[0]);
+  if (firstData > cur) cur.setTime(firstData.getTime()); // не рисуем пустые месяцы до первых данных
+  while (cur <= end) {
+    months.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`);
+    cur.setMonth(cur.getMonth() + 1);
+  }
+
   const W = 1080, H = 260, padL = 62, padR = 12, padT = 8, padB = 30;
   const plotW = W - padL - padR, plotH = H - padT - padB;
+  // шкала: вверх до выручки, вниз — до убытка (если есть месяцы с отрицательной прибылью)
   const maxV = niceMax(Math.max(...months.map(k => (byMonth.get(k) || { rev: 0 }).rev), 1));
-  const yScale = v => padT + plotH - (v / maxV) * plotH;
+  const step = maxV / 4;
+  const minProf = Math.min(0, ...months.map(k => (byMonth.get(k) || { prof: 0 }).prof));
+  const minV = -Math.ceil(-minProf / step) * step;
+  const yScale = v => padT + plotH - ((v - minV) / (maxV - minV)) * plotH;
 
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Выручка и прибыль по месяцам" });
 
-  // сетка + подписи оси Y (4 деления, круглые числа)
-  for (let i = 0; i <= 4; i++) {
-    const v = (maxV / 4) * i, y = yScale(v);
-    svg.append(svgEl("line", { x1: padL, x2: W - padR, y1: y, y2: y, stroke: i === 0 ? cssVar("--axis") : cssVar("--grid"), "stroke-width": 1 }));
+  // сетка + подписи оси Y (шаг круглый, нулевая линия выделена)
+  for (let v = minV; v <= maxV + 1e-9; v += step) {
+    const y = yScale(v);
+    svg.append(svgEl("line", { x1: padL, x2: W - padR, y1: y, y2: y, stroke: v === 0 ? cssVar("--axis") : cssVar("--grid"), "stroke-width": 1 }));
     const t = svgEl("text", { x: padL - 8, y: y + 4, "text-anchor": "end", "font-size": 11, fill: cssVar("--muted"), style: "font-variant-numeric: tabular-nums" });
     t.textContent = fmtInt.format(v);
     svg.append(t);
@@ -624,9 +695,10 @@ function renderMonthlyChart(done) {
     const cx = padL + band * i + band / 2;
     // выручка | прибыль, 2px зазор между столбиками пары
     const x1 = cx - barW - 1, x2 = cx + 1;
-    if (m.rev > 0) svg.append(svgEl("path", { d: barPath(x1, yScale(m.rev), barW, plotH + padT - yScale(m.rev), 4), fill: s1 }));
-    if (m.prof > 0) svg.append(svgEl("path", { d: barPath(x2, yScale(m.prof), barW, plotH + padT - yScale(m.prof), 4), fill: s2 }));
-    else if (m.prof < 0) svg.append(svgEl("rect", { x: x2, y: yScale(0), width: barW, height: 4, fill: cssVar("--bad"), rx: 2 }));
+    const y0 = yScale(0);
+    if (m.rev > 0) svg.append(svgEl("path", { d: barPath(x1, yScale(m.rev), barW, y0 - yScale(m.rev), 4), fill: s1 }));
+    if (m.prof > 0) svg.append(svgEl("path", { d: barPath(x2, yScale(m.prof), barW, y0 - yScale(m.prof), 4), fill: s2 }));
+    else if (m.prof < 0) svg.append(svgEl("path", { d: barPathDown(x2, y0, barW, yScale(m.prof) - y0, 4), fill: s2 }));
 
     // подпись месяца
     const [yy, mm] = k.split("-");
@@ -942,7 +1014,12 @@ document.getElementById("exportBtn").addEventListener("click", () => {
     "application/json");
 });
 document.getElementById("exportCsvBtn").addEventListener("click", () => {
-  const esc = v => { v = String(v ?? ""); return /[";\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const esc = v => {
+    v = String(v ?? "");
+    // текст, начинающийся с =, +, @ или - (кроме чисел), Excel трактует как формулу — экранируем апострофом
+    if (/^[=+@\t\r]/.test(v) || (/^-/.test(v) && !/^-\d+([.,]\d+)?$/.test(v))) v = "'" + v;
+    return /[";\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  };
   const head = ["Дата заявки","Дата выполнения","Клиент","Телефон","Канал","Услуга","Статус","Площадь м2","Сумма","Затраты","Нормо-часы","Оплачено","Долг","Проблемный","Заметки"];
   const lines = [head.join(";")];
   for (const o of orders) {
@@ -970,7 +1047,7 @@ document.getElementById("importFile").addEventListener("change", async ev => {
 
 /* ═══════════ демо-данные ═══════════ */
 function seedDemo() {
-  const d = (off) => { const t = new Date(); t.setDate(t.getDate() - off); return t.toISOString().slice(0, 10); };
+  const d = (off) => { const t = new Date(); t.setDate(t.getDate() - off); return isoLocal(t); };
   orders = [
     { leadDate: d(160), doneDate: d(154), client: "ЖК «Северный», кв. 84", channel: "Яндекс Директ", service: "После ремонта", status: "done", area: 78, revenue: 31500, costs: 16400, hours: 26, paid: 31500, problem: false, notes: "" },
     { leadDate: d(120), doneDate: d(116), client: "Коттедж, Лесная 12", channel: "Яндекс Директ", service: "После ремонта", status: "done", area: 140, revenue: 47000, costs: 25572, hours: 42, paid: 47000, problem: false, notes: "Двухэтажный, окна отдельно" },
@@ -1026,7 +1103,7 @@ function renderAll() {
   const s = slice();
   const m = metricsOf(s.leads, s.done);
   renderKpis(m);
-  renderMonthlyChart(s.done);
+  renderMonthlyChart(s.done, s.to);
 
   const chStats = groupStats(s.leads, s.done, "channel", CHANNELS);
   const svStats = groupStats(s.leads, s.done, "service", SERVICES);
